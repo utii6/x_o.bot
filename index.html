@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>لعبة الشهيـرهXO</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>لعبة الشهيـرهXO 🎮</h1>
+
+  <div id="board">
+    <div class="cell" data-index="0"></div>
+    <div class="cell" data-index="1"></div>
+    <div class="cell" data-index="2"></div>
+    <div class="cell" data-index="3"></div>
+    <div class="cell" data-index="4"></div>
+    <div class="cell" data-index="5"></div>
+    <div class="cell" data-index="6"></div>
+    <div class="cell" data-index="7"></div>
+    <div class="cell" data-index="8"></div>
+  </div>
+
+  <!-- موسيقى الخلفية -->
+  <audio id="bgMusic" autoplay loop>
+    <source src="boss2015.mp3" type="audio/mpeg" />
+    <source src="music.m4a" type="audio/mp4" />
+    متصفحك لا يدعم تشغيل الصوت.
+  </audio>
+
+  <!-- مكتبة ويب أب تيليجرام (اختياري لكن مفيد) -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
