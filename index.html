@@ -1,66 +1,27 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>لعبة الشهيـرهXO</title>
-  <link rel="stylesheet" href="style.css" />
   <style>
-    body {
-      font-family: 'Tajawal', sans-serif;
-      text-align: center;
-      background-color: #121212;
-      color: #fff;
-      margin: 0;
-      padding: 0;
-    }
-
-    #board {
-      display: grid;
-      grid-template-columns: repeat(3, 100px);
-      grid-template-rows: repeat(3, 100px);
-      gap: 10px;
-      justify-content: center;
-      margin: 30px auto;
-    }
-
-    .cell {
-      width: 100px;
-      height: 100px;
-      background-color: #1e1e1e;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 2.5em;
-      cursor: pointer;
-      border-radius: 8px;
-      transition: background 0.3s;
-    }
-
-    .cell:hover {
-      background-color: #2e2e2e;
-    }
-
-    /* الزر الأحمر */
-    #shareBtn {
-      background-color: #e50914;
-      color: white;
-      font-size: 1.3em;
-      padding: 15px 40px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      margin-top: 25px;
-      transition: background-color 0.3s;
-    }
-
-    #shareBtn:hover {
-      background-color: #b20710;
-    }
+    :root{--red:#e50914;--bg:#121212;--cell-size:90px}
+    body{font-family:tajawal,system-ui; background:var(--bg); color:#fff; text-align:center; margin:0; padding:20px}
+    h1{margin:6px 0 12px}
+    #board{display:grid; grid-template-columns:repeat(3,var(--cell-size)); grid-gap:10px; justify-content:center; margin:10px auto}
+    .cell{width:var(--cell-size); height:var(--cell-size); display:flex; align-items:center; justify-content:center;
+          border:2px solid var(--red); background:transparent; border-radius:8px; font-size:2.4rem; cursor:pointer}
+    .cell:hover{background:rgba(229,9,20,0.06)}
+    #controls{margin-top:18px}
+    /* زر شفاف بإطار أحمر */
+    .btn{background:transparent; border:3px solid var(--red); color:var(--red); padding:12px 28px; border-radius:10px; font-size:1.1rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:8px}
+    .btn:hover{background:rgba(229,9,20,0.12)}
+    #status{margin-top:12px; opacity:0.9}
+    audio{display:none}
   </style>
 </head>
 <body>
-  <h1>لعبة X O 🎮</h1>
+  <h1> X O لعبة 🎮</h1>
 
   <div id="board">
     <div class="cell" data-index="0"></div>
@@ -74,28 +35,157 @@
     <div class="cell" data-index="8"></div>
   </div>
 
-  <!-- زر اللعب مع صديق -->
-  <button id="shareBtn">🎮 العب مع صاحبـك</button>
+  <div id="controls">
+    <button id="createBtn" class="btn">🎮 العب مع صاحبـك</button>
+    <a id="localBtn" class="btn" href="#" style="margin-left:10px">🔁 لعب محلي</a>
+  </div>
 
-  <!-- موسيقى الخلفية -->
+  <div id="status">الوضع: محلي</div>
+
+  <!-- موسيقى الخلفية كما طلبت -->
   <audio id="bgMusic" autoplay loop>
-    <source src="boss2014.mp3" type="audio/mpeg" />
-    متصفحك لا يدعم تشغيل الصوت.
+    <source src="/static/boss2014.mp3" type="audio/mpeg" />
   </audio>
 
-  <!-- مكتبة ويب أب تيليجرام -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="script.js"></script>
+<script>
+/* واجهة اللعب + WebSocket client */
+const cells = Array.from(document.querySelectorAll(".cell"));
+const statusEl = document.getElementById("status");
+const createBtn = document.getElementById("createBtn");
+const localBtn = document.getElementById("localBtn");
+let localState = [null,null,null,null,null,null,null,null,null];
+let localTurn = "X";
+let ws = null;
+let myRole = null;
+let roomId = null;
+let inRoom = false;
 
-  <script>
-    // عند الضغط على الزر الأحمر
-    document.getElementById("shareBtn").addEventListener("click", function() {
-      if (window.Telegram && Telegram.WebApp) {
-        Telegram.WebApp.shareGame();
-      } else {
-        alert("يمكنك مشاركة اللعبة↗️");
+function renderState(state){
+  for(let i=0;i<9;i++){
+    cells[i].textContent = state[i] || "";
+  }
+}
+
+function resetLocal(){
+  localState = [null,null,null,null,null,null,null,null,null];
+  localTurn = "X";
+  renderState(localState);
+  statusEl.textContent = "الوضع: محلي";
+  inRoom = false;
+  if(ws){ ws.close(); ws=null; }
+}
+
+cells.forEach(c=>{
+  c.addEventListener("click", async ()=>{
+    const idx = parseInt(c.dataset.index);
+    if(inRoom){
+      if(!myRole) return;
+      // send move via ws
+      if(ws && ws.readyState === WebSocket.OPEN){
+        ws.send(JSON.stringify({type:"move", index: idx, player: myRole}));
       }
-    });
-  </script>
+    } else {
+      // local play vs simple bot: player X is human, O bot
+      if(localState[idx]===null && localTurn==="X"){
+        localState[idx] = "X"; localTurn="O"; renderState(localState);
+        const w = checkWinner(localState);
+        if(w || localState.every(x=>x!==null)){ showResult(w); return; }
+        // bot move (random)
+        await new Promise(r=>setTimeout(r, 350));
+        const avail = localState.map((v,i)=>v===null?i:null).filter(v=>v!==null);
+        if(avail.length){
+          const choice = avail[Math.floor(Math.random()*avail.length)];
+          localState[choice] = "O"; localTurn="X"; renderState(localState);
+          const w2 = checkWinner(localState);
+          if(w2 || localState.every(x=>x!==null)){ showResult(w2); return; }
+        }
+      }
+    }
+  });
+});
+
+function showResult(w){
+  if(w) alert("😂الفائز: " + w);
+  else alert("😑تعادل");
+  resetLocal();
+}
+
+function checkWinner(state){
+  const L = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  for(const [a,b,c] of L) if(state[a] && state[a]===state[b] && state[b]===state[c]) return state[a];
+  return null;
+}
+
+/* إنشاء غرفة وفتح مشاركة تيليجرام */
+createBtn.addEventListener("click", async ()=>{
+  // طلب إنشاء غرفة من السيرفر
+  try{
+    const res = await fetch("/create_room", {method:"POST"});
+    const j = await res.json();
+    roomId = j.room_id;
+    const url = encodeURIComponent(j.room_url);
+    const text = encodeURIComponent("تعال نلعب XO 😎 " + j.room_url);
+    // افتح نافذة المشاركة تيليجرام
+    const shareUrl = `https://t.me/share/url?url=${url}&text=${text}`;
+    window.open(shareUrl, "_blank");
+    // بعد إنشاء الغرفة نبقى في وضع الانتظار للانضمام. اتصل بالويب سوكت كـ لاعب X
+    connectWebSocket(roomId);
+  }catch(err){
+    alert("💔خطأ بإنشاء الغرفة.");
+    console.error(err);
+  }
+});
+
+localBtn.addEventListener("click",(e)=>{ e.preventDefault(); resetLocal(); });
+
+/* إذا دخلت الصفحة عبر رابط ?room=xxx نحاول الاتصال مباشرة */
+(function autoConnectFromQuery(){
+  const p = new URLSearchParams(window.location.search);
+  const r = p.get("room");
+  if(r){
+    connectWebSocket(r);
+  }
+})();
+
+function connectWebSocket(rid){
+  if(ws){ ws.close(); ws=null; }
+  const proto = (location.protocol === "https:") ? "wss" : "ws";
+  const host = location.host;
+  ws = new WebSocket(`${proto}://${host}/ws/${rid}`);
+  ws.addEventListener("open", ()=>{ statusEl.textContent = "😎موصل: في انتظار الخصم..."; inRoom=true; });
+  ws.addEventListener("message", (ev)=>{
+    const msg = JSON.parse(ev.data);
+    if(msg.type === "role"){
+      myRole = msg.role;
+      renderState(msg.state);
+      statusEl.textContent = `✅متصل: أنت ${myRole}. دور الآن: ${msg.turn}`;
+    } else if(msg.type === "update"){
+      renderState(msg.state);
+      statusEl.textContent = `💁متصل: دور الآن ${msg.turn}`;
+    } else if(msg.type === "info"){
+      if(msg.msg==="opponent-joined") statusEl.textContent = `👍الخصم انضم. أنت ${myRole}`;
+      if(msg.msg==="opponent-left") statusEl.textContent = "😑الخصم غادر";
+    } else if(msg.type === "result"){
+      if(msg.winner) alert("الفائز: " + msg.winner); else alert("😑تعادل");
+      // بعد النتيجة ابقِ الغرفة أو اعرض زر اعادة؟ هنا نعيد ضبط الواجهة المحلية
+      // سنغلق الاتصال حتى يعيدوا فتح غرفة جديدة
+      ws.close();
+      ws = null;
+      inRoom = false;
+      myRole = null;
+      statusEl.textContent = "انتهت المباراة";
+    } else if(msg.type === "reset"){
+      renderState(msg.state);
+    } else if(msg.type === "error"){
+      alert(msg.msg);
+    }
+  });
+  ws.addEventListener("close", ()=>{ if(!inRoom){ statusEl.textContent = "الوضع: محلي"; }});
+  ws.addEventListener("error", ()=>{ statusEl.textContent = "خطأ بالاتصال"; });
+}
+
+/* عند تحميل نرسم الحالة الافتراضية */
+renderState(localState);
+</script>
 </body>
 </html>
