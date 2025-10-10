@@ -5,9 +5,62 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>لعبة الشهيـرهXO</title>
   <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family: 'Tajawal', sans-serif;
+      text-align: center;
+      background-color: #121212;
+      color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 10px;
+      justify-content: center;
+      margin: 30px auto;
+    }
+
+    .cell {
+      width: 100px;
+      height: 100px;
+      background-color: #1e1e1e;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2.5em;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background 0.3s;
+    }
+
+    .cell:hover {
+      background-color: #2e2e2e;
+    }
+
+    /* الزر الأحمر */
+    #shareBtn {
+      background-color: #e50914;
+      color: white;
+      font-size: 1.3em;
+      padding: 15px 40px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-top: 25px;
+      transition: background-color 0.3s;
+    }
+
+    #shareBtn:hover {
+      background-color: #b20710;
+    }
+  </style>
 </head>
 <body>
-  <h1>لعبة الشهيـرهXO 🎮</h1>
+  <h1>لعبة X O 🎮</h1>
 
   <div id="board">
     <div class="cell" data-index="0"></div>
@@ -21,15 +74,28 @@
     <div class="cell" data-index="8"></div>
   </div>
 
+  <!-- زر اللعب مع صديق -->
+  <button id="shareBtn">🎮 العب مع صاحبـك</button>
+
   <!-- موسيقى الخلفية -->
   <audio id="bgMusic" autoplay loop>
     <source src="boss2014.mp3" type="audio/mpeg" />
-    <source src="boss2014.mp3" type="audio/mp4" />
     متصفحك لا يدعم تشغيل الصوت.
   </audio>
 
-  <!-- مكتبة ويب أب تيليجرام (اختياري لكن مفيد) -->
+  <!-- مكتبة ويب أب تيليجرام -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="script.js"></script>
+
+  <script>
+    // عند الضغط على الزر الأحمر
+    document.getElementById("shareBtn").addEventListener("click", function() {
+      if (window.Telegram && Telegram.WebApp) {
+        Telegram.WebApp.shareGame();
+      } else {
+        alert("يمكنك مشاركة اللعبة↗️");
+      }
+    });
+  </script>
 </body>
 </html>
