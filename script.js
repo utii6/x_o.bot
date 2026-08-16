@@ -1,8 +1,13 @@
 // Telegram WebApp آمن
 const tg = window.Telegram ? window.Telegram.WebApp : null;
+if (tg) {
+  tg.expand();
+  tg.ready();
+}
 
-// تشغيل الموسيقى
+// 1. تشغيل الصوت المحلي مباشرة
 const music = document.getElementById('bgMusic');
+
 function ensureMusicPlays() {
   if (!music) return;
   music.play().catch(() => {
@@ -17,9 +22,15 @@ function ensureMusicPlays() {
 }
 document.addEventListener('DOMContentLoaded', ensureMusicPlays);
 
+// 2. إعدادات اللعبة والواجهة
 const cells = document.querySelectorAll('.cell');
+const statusDiv = document.getElementById('status') || document.querySelector('.status') || document.querySelector('h2');
+const shareBtn = document.getElementById('shareBtn');
+const aiBtn = document.getElementById('aiBtn');
+
 let board = Array(9).fill('');
-let isGameActive = true; // متغير لمنع اللعب أثناء دور الذكاء الاصطناعي أو بعد انتهاء اللعبة
+let isGameActive = true;
+let isAiMode = false;
 
 const HUMAN = 'X';
 const AI = 'O';
@@ -29,29 +40,41 @@ const WINS = [
   [0,4,8], [2,4,6]
 ];
 
-// تفعيل النقر
+// تفعيل زر اللعب ضد الذكاء الاصطناعي
+if (aiBtn) {
+  aiBtn.addEventListener('click', () => {
+    isAiMode = true;
+    resetGame();
+    if (statusDiv) statusDiv.textContent = "بدأ اللعب ضد الجهاز! دورك (X)";
+    if (shareBtn) shareBtn.style.display = 'none';
+  });
+}
+
+// 3. أحداث اللعب
 cells.forEach(cell => {
   cell.addEventListener('click', () => {
+    ensureMusicPlays();
     const i = +cell.dataset.index;
-    if (!isGameActive || board[i]) return; // منع الضغط في غير دور اللاعب
+    if (!isGameActive || board[i]) return;
     
-    move(i, HUMAN);
-    
-    const r = checkResult(board);
-    if (!r) {
-      isGameActive = false; // تعطيل اللعب حتى ينتهي الذكاء الاصطناعي
-      setTimeout(aiMove, 300);
-    }
+    makeMove(i, HUMAN);
   });
 });
 
-function move(i, player) {
+function makeMove(i, player) {
   board[i] = player;
   cells[i].textContent = player;
+
   const r = checkResult(board);
   if (r) {
-    // تأخير إظهار التنبيه حتى تحدّث الشاشة واجهة المستخدم أولاً
     setTimeout(() => endGame(r), 50);
+    return;
+  }
+
+  if (isAiMode && player === HUMAN) {
+    isGameActive = false;
+    if (statusDiv) statusDiv.textContent = "الجهاز يفكر... 🤖";
+    setTimeout(aiMove, 300);
   }
 }
 
@@ -71,73 +94,41 @@ function endGame(result) {
   if (tg && tg.sendData) tg.sendData(result);
   alert(msg);
   
-  // إعادة الضبط
+  resetGame();
+}
+
+function resetGame() {
   board = Array(9).fill('');
   cells.forEach(c => c.textContent = '');
   isGameActive = true;
 }
 
-// AI: خوارزمية ذكية تمنع الخسارة تماماً
+// 4. خوارزمية الذكاء الاصطناعي الذكية
 function aiMove() {
   const empty = emptyIndices(board);
   if (!empty.length) return;
 
-  // 1) محاولة الفوز
-  for (const i of empty) {
-    if (wouldWin(i, AI)) {
-      move(i, AI);
-      return;
-    }
-  }
+  // فوز أو صد
+  for (const i of empty) { if (wouldWin(i, AI)) { makeMove(i, AI); isGameActive = true; return; } }
+  for (const i of empty) { if (wouldWin(i, HUMAN)) { makeMove(i, AI); isGameActive = true; return; } }
 
-  // 2) صد فوز اللاعب
-  for (const i of empty) {
-    if (wouldWin(i, HUMAN)) {
-      move(i, AI);
-      isGameActive = true;
-      return;
-    }
-  }
-
-  // 3) منع فخ الزوايا المتقابلة (Opposite Corner Fork Defense)
+  // كسر فخ الزوايا المتقابلة
   if (board[4] === AI) {
-    const isOppositeCorners = (board[0] === HUMAN && board[8] === HUMAN) || 
-                              (board[2] === HUMAN && board[6] === HUMAN);
-    if (isOppositeCorners && empty.length === 6) {
-      // إجبار الذكاء الاصطناعي على اللعب في جانب بدلاً من زاوية لكسر الفخ
+    const isOpposite = (board[0] === HUMAN && board[8] === HUMAN) || (board[2] === HUMAN && board[6] === HUMAN);
+    if (isOpposite && empty.length === 6) {
       const sides = [1, 3, 5, 7].filter(i => board[i] === '');
       if (sides.length) {
-        move(sides[Math.floor(Math.random() * sides.length)], AI);
+        makeMove(sides[Math.floor(Math.random() * sides.length)], AI);
         isGameActive = true;
         return;
       }
     }
   }
 
-  // 4) أخذ المركز
-  if (board[4] === '') {
-    move(4, AI);
-    isGameActive = true;
-    return;
-  }
-
-  // 5) أخذ الزوايا
-  for (const i of [0, 2, 6, 8]) {
-    if (board[i] === '') {
-      move(i, AI);
-      isGameActive = true;
-      return;
-    }
-  }
-
-  // 6) أخذ الجوانب
-  for (const i of [1, 3, 5, 7]) {
-    if (board[i] === '') {
-      move(i, AI);
-      isGameActive = true;
-      return;
-    }
-  }
+  // الترتيب العادي (مركز -> زوايا -> جوانب)
+  if (board[4] === '') { makeMove(4, AI); isGameActive = true; return; }
+  for (const i of [0, 2, 6, 8]) { if (board[i] === '') { makeMove(i, AI); isGameActive = true; return; } }
+  for (const i of [1, 3, 5, 7]) { if (board[i] === '') { makeMove(i, AI); isGameActive = true; return; } }
 }
 
 function emptyIndices(b) {
@@ -150,4 +141,13 @@ function wouldWin(i, player) {
   const tmp = board.slice();
   tmp[i] = player;
   return checkResult(tmp) === (player === HUMAN ? 'win' : 'loss');
+}
+
+// مشاركة الرابط
+if (shareBtn) {
+  shareBtn.addEventListener('click', () => {
+    const shareUrl = `https://t.me/share/url?url=https://t.me/VVJJbot/game&text=🎮 تحداني في لعبة XO!`;
+    if (tg) tg.openTelegramLink(shareUrl);
+    else window.open(shareUrl, '_blank');
+  });
 }
