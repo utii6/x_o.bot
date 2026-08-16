@@ -1,55 +1,35 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لعبة XO</title>
-    <!-- مكتبة تليجرام -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- مكتبة Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- مكتبة الاحتفالات -->
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
-    
-    <!-- استدعاء ملف التنسيق -->
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>X O لعبة </title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <h1>X O لعبة 🎮</h1>
 
-    <!-- خلفية الفيديو والصوت -->
-    <video id="bgVideo" autoplay loop muted playsinline>
-        <source src="FullHD.MP4" type="video/mp4">
-    </video>
-    <audio id="bgMusic" src="boss2014.mp3" loop autoplay></audio>
+  <div id="board">
+    <div class="cell" data-index="0"></div>
+    <div class="cell" data-index="1"></div>
+    <div class="cell" data-index="2"></div>
+    <div class="cell" data-index="3"></div>
+    <div class="cell" data-index="4"></div>
+    <div class="cell" data-index="5"></div>
+    <div class="cell" data-index="6"></div>
+    <div class="cell" data-index="7"></div>
+    <div class="cell" data-index="8"></div>
+  </div>
 
-    <h2>🎮 لعبة XO </h2>
-    <div id="status" class="status">جاري التحميل...</div>
+  <!-- موسيقى الخلفية -->
+  <audio id="bgMusic" autoplay loop>
+    <source src="boss2014.mp3" type="audio/mpeg" />
+    <source src="boss2014.mp3" type="audio/mp4" />
+    متصفحك لا يدعم تشغيل الصوت.
+  </audio>
 
-    <div style="margin-bottom: 15px;">
-        <button id="shareBtn" class="btn btn-share" onclick="shareGame()">🔗 دعوة صاحبـك</button>
-        <button id="aiBtn" class="btn btn-ai" onclick="startAiMode()">🤖 اللعب ضد الفارغين</button>
-    </div>
-
-    <!-- شبكة اللعب مطابقة لـ style.css وبها data-index لعمل الضغط -->
-    <div id="board">
-        <div class="cell" data-index="0" onclick="makeMove(0)"></div>
-        <div class="cell" data-index="1" onclick="makeMove(1)"></div>
-        <div class="cell" data-index="2" onclick="makeMove(2)"></div>
-        <div class="cell" data-index="3" onclick="makeMove(3)"></div>
-        <div class="cell" data-index="4" onclick="makeMove(4)"></div>
-        <div class="cell" data-index="5" onclick="makeMove(5)"></div>
-        <div class="cell" data-index="6" onclick="makeMove(6)"></div>
-        <div class="cell" data-index="7" onclick="makeMove(7)"></div>
-        <div class="cell" data-index="8" onclick="makeMove(8)"></div>
-    </div>
-
-    <div class="emojis">
-        <button class="emoji-btn" onclick="sendEmoji('🔥')">🔥</button>
-        <button class="emoji-btn" onclick="sendEmoji('😂')">😂</button>
-        <button class="emoji-btn" onclick="sendEmoji('😎')">😎</button>
-        <button class="emoji-btn" onclick="sendEmoji('👏')">👏</button>
-    </div>
-
-    <script src="script.js"></script>
+  <!-- مكتبة ويب أب تيليجرام (اختياري لكن مفيد) -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
