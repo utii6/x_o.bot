@@ -1,238 +1,153 @@
-// 1. تهيئة تليجرام WebApp
-const tg = window.Telegram?.WebApp;
-if (tg) {
-    tg.expand();
-    tg.ready();
+// Telegram WebApp آمن
+const tg = window.Telegram ? window.Telegram.WebApp : null;
+
+// تشغيل الموسيقى
+const music = document.getElementById('bgMusic');
+function ensureMusicPlays() {
+  if (!music) return;
+  music.play().catch(() => {
+    const resume = () => {
+      music.play().catch(() => {});
+      document.removeEventListener('click', resume);
+      document.removeEventListener('touchstart', resume);
+    };
+    document.addEventListener('click', resume, { once: true });
+    document.addEventListener('touchstart', resume, { once: true });
+  });
 }
+document.addEventListener('DOMContentLoaded', ensureMusicPlays);
 
-// 2. إعدادات Supabase
-const SUPABASE_URL = "https://vlwmoapmjprhgvlimlfi.supabase.co";
-const SUPABASE_KEY = "sb_publishable_1mIuWWGl__SfHvxg8Wy-vQ_AGg4esSS";
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const cells = document.querySelectorAll('.cell');
+let board = Array(9).fill('');
+let isGameActive = true; // متغير لمنع اللعب أثناء دور الذكاء الاصطناعي أو بعد انتهاء اللعبة
 
-// المؤثرات الصوتية
-const clickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
-const winSound = new Audio('https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3');
-const loseSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2658/2658-preview.mp3');
-
-// 3. قراءة المعاملات وتحديد الغرفة (Online / AI)
-const urlParams = new URLSearchParams(window.location.search);
-let startParam = tg?.initDataUnsafe?.start_param || urlParams.get('tgWebAppStartParam') || urlParams.get('room');
-
-let roomId = startParam || null;
-let isAiMode = false;
-let mySymbol = 'X';
-let isMyTurn = false;
-let gameState = Array(9).fill("");
-let gameActive = true;
-let channel = null;
-
-const winPatterns = [
+const HUMAN = 'X';
+const AI = 'O';
+const WINS = [
   [0,1,2], [3,4,5], [6,7,8],
   [0,3,6], [1,4,7], [2,5,8],
   [0,4,8], [2,4,6]
 ];
 
-const statusDiv = document.getElementById('status');
-const shareBtn = document.getElementById('shareBtn');
-const aiBtn = document.getElementById('aiBtn');
-
-// التهيئة عند التشغيل
-if (!roomId) {
-    // إنشاء غرفة جديدة
-    roomId = "room_" + Math.random().toString(36).substring(2, 9);
-    mySymbol = 'X';
-    isMyTurn = true;
-    if (statusDiv) statusDiv.innerText = "أنت اللاعب (X) - شارك الرابط مع صديقك أو العب ضد الجهاز!";
-    initOnlineRoom();
-} else {
-    // الانضمام لغرفة سابقة
-    mySymbol = 'O';
-    isMyTurn = false;
-    if (statusDiv) statusDiv.innerText = "تم الانضمام للغرفة! بانتظار حركة اللاعب (X)...";
-    if (shareBtn) shareBtn.style.display = 'none';
-    if (aiBtn) aiBtn.style.display = 'none';
-    initOnlineRoom();
-}
-
-// 4. الربط عبر Supabase Realtime
-function initOnlineRoom() {
-    channel = supabaseClient.channel(`game_${roomId}`, {
-        config: { broadcast: { self: false } }
-    });
-
-    channel.on('broadcast', { event: 'move' }, payload => {
-        if (isAiMode) return;
-        const { index, symbol } = payload.payload;
-        gameState[index] = symbol;
-        updateBoard();
-        
-        const winningPattern = getWinningPattern(symbol);
-        if (winningPattern) {
-            highlightWinningCells(winningPattern);
-            statusDiv.innerText = `للأسف! منافسك (${symbol}) فاز باللعبة 💔`;
-            loseSound.play();
-            gameActive = false;
-            return;
-        }
-        
-        if (!gameState.includes("")) {
-            statusDiv.innerText = "تعادل بين الطرفين! 🤝";
-            gameActive = false;
-            return;
-        }
-
-        isMyTurn = true;
-        statusDiv.innerText = "دورك الآن!";
-    }).on('broadcast', { event: 'reaction' }, payload => {
-        showFloatingEmoji(payload.payload.emoji);
-    }).subscribe();
-}
-
-// 5. وضع اللعب ضد الجهاز (Offline AI)
-function startAiMode() {
-    isAiMode = true;
-    gameState = Array(9).fill("");
-    gameActive = true;
-    mySymbol = 'X';
-    isMyTurn = true;
+// تفعيل النقر
+cells.forEach(cell => {
+  cell.addEventListener('click', () => {
+    const i = +cell.dataset.index;
+    if (!isGameActive || board[i]) return; // منع الضغط في غير دور اللاعب
     
-    if (shareBtn) shareBtn.style.display = 'none';
-    if (aiBtn) aiBtn.style.display = 'none';
+    move(i, HUMAN);
     
-    resetBoardUI();
-    statusDiv.innerText = "بدأ اللعب ضد الجهاز! دورك الآن (X)";
+    const r = checkResult(board);
+    if (!r) {
+      isGameActive = false; // تعطيل اللعب حتى ينتهي الذكاء الاصطناعي
+      setTimeout(aiMove, 300);
+    }
+  });
+});
+
+function move(i, player) {
+  board[i] = player;
+  cells[i].textContent = player;
+  const r = checkResult(board);
+  if (r) {
+    // تأخير إظهار التنبيه حتى تحدّث الشاشة واجهة المستخدم أولاً
+    setTimeout(() => endGame(r), 50);
+  }
 }
 
-function makeAiMove() {
-    if (!gameActive) return;
-    
-    let emptyIndices = gameState.map((val, idx) => val === "" ? idx : null).filter(val => val !== null);
-    if (emptyIndices.length === 0) return;
+function checkResult(b) {
+  for (const [a, c, d] of WINS) {
+    if (b[a] && b[a] === b[c] && b[a] === b[d]) {
+      return b[a] === HUMAN ? 'win' : 'loss';
+    }
+  }
+  if (b.every(x => x !== '')) return 'draw';
+  return null;
+}
 
-    let randomIndex = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
-    gameState[randomIndex] = 'O';
-    clickSound.play();
-    updateBoard();
+function endGame(result) {
+  const msg = result === 'win' ? '😂🎉 فزت!' : result === 'loss' ? '😢 خسرت😂' : '🤝 تعادل';
+  
+  if (tg && tg.sendData) tg.sendData(result);
+  alert(msg);
+  
+  // إعادة الضبط
+  board = Array(9).fill('');
+  cells.forEach(c => c.textContent = '');
+  isGameActive = true;
+}
 
-    const winningPattern = getWinningPattern('O');
-    if (winningPattern) {
-        highlightWinningCells(winningPattern);
-        statusDiv.innerText = "فاز الجهاز عليك! 🤖💔";
-        loseSound.play();
-        gameActive = false;
+// AI: خوارزمية ذكية تمنع الخسارة تماماً
+function aiMove() {
+  const empty = emptyIndices(board);
+  if (!empty.length) return;
+
+  // 1) محاولة الفوز
+  for (const i of empty) {
+    if (wouldWin(i, AI)) {
+      move(i, AI);
+      return;
+    }
+  }
+
+  // 2) صد فوز اللاعب
+  for (const i of empty) {
+    if (wouldWin(i, HUMAN)) {
+      move(i, AI);
+      isGameActive = true;
+      return;
+    }
+  }
+
+  // 3) منع فخ الزوايا المتقابلة (Opposite Corner Fork Defense)
+  if (board[4] === AI) {
+    const isOppositeCorners = (board[0] === HUMAN && board[8] === HUMAN) || 
+                              (board[2] === HUMAN && board[6] === HUMAN);
+    if (isOppositeCorners && empty.length === 6) {
+      // إجبار الذكاء الاصطناعي على اللعب في جانب بدلاً من زاوية لكسر الفخ
+      const sides = [1, 3, 5, 7].filter(i => board[i] === '');
+      if (sides.length) {
+        move(sides[Math.floor(Math.random() * sides.length)], AI);
+        isGameActive = true;
         return;
+      }
     }
+  }
 
-    if (!gameState.includes("")) {
-        statusDiv.innerText = "تعادل مع الجهاز! 🤝";
-        gameActive = false;
-        return;
+  // 4) أخذ المركز
+  if (board[4] === '') {
+    move(4, AI);
+    isGameActive = true;
+    return;
+  }
+
+  // 5) أخذ الزوايا
+  for (const i of [0, 2, 6, 8]) {
+    if (board[i] === '') {
+      move(i, AI);
+      isGameActive = true;
+      return;
     }
+  }
 
-    isMyTurn = true;
-    statusDiv.innerText = "دورك الآن!";
+  // 6) أخذ الجوانب
+  for (const i of [1, 3, 5, 7]) {
+    if (board[i] === '') {
+      move(i, AI);
+      isGameActive = true;
+      return;
+    }
+  }
 }
 
-// 6. تنفيذ الحركة واللعب
-function makeMove(index) {
-    if (!gameActive || !isMyTurn || gameState[index] !== "") return;
-
-    clickSound.play();
-    if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
-
-    gameState[index] = mySymbol;
-    updateBoard();
-    
-    if (!isAiMode && channel) {
-        channel.send({
-            type: 'broadcast',
-            event: 'move',
-            payload: { index, symbol: mySymbol }
-        });
-    }
-
-    const winningPattern = getWinningPattern(mySymbol);
-    if (winningPattern) {
-        highlightWinningCells(winningPattern);
-        statusDiv.innerText = "مبروك! لقد فزت باللعبة! 🤩🎉";
-        winSound.play();
-        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-        if (window.confetti) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-        gameActive = false;
-        return;
-    }
-
-    if (!gameState.includes("")) {
-        statusDiv.innerText = "تعادل ! 🤝";
-        gameActive = false;
-        return;
-    }
-
-    isMyTurn = false;
-
-    if (isAiMode) {
-        statusDiv.innerText = "الجهاز يفكر...";
-        setTimeout(makeAiMove, 600);
-    } else {
-        statusDiv.innerText = "بانتظار حركة صديقك...";
-    }
+function emptyIndices(b) {
+  const out = [];
+  for (let i = 0; i < 9; i++) if (!b[i]) out.push(i);
+  return out;
 }
 
-function updateBoard() {
-    const cells = document.querySelectorAll('.cell');
-    cells.forEach((cell, i) => {
-        cell.innerText = gameState[i];
-    });
-}
-
-function getWinningPattern(symbol) {
-    return winPatterns.find(pattern => pattern.every(index => gameState[index] === symbol));
-}
-
-function highlightWinningCells(pattern) {
-    const cells = document.querySelectorAll('.cell');
-    pattern.forEach(index => {
-        cells[index].style.backgroundColor = '#28a745';
-        cells[index].style.color = '#fff';
-    });
-}
-
-function resetBoardUI() {
-    const cells = document.querySelectorAll('.cell');
-    cells.forEach(cell => {
-        cell.innerText = "";
-        cell.style.backgroundColor = "";
-        cell.style.color = "";
-    });
-}
-
-// 7. التفاعلات ومشاركة الرابط
-function sendEmoji(emoji) {
-    if (!isAiMode && channel) {
-        channel.send({
-            type: 'broadcast',
-            event: 'reaction',
-            payload: { emoji }
-        });
-    }
-    showFloatingEmoji(emoji);
-}
-
-function showFloatingEmoji(emoji) {
-    const el = document.createElement('div');
-    el.innerText = emoji;
-    el.className = 'floating-emoji';
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 1500);
-}
-
-function shareGame() {
-    const botUsername = "VVJJbot";
-    const shareUrl = `https://t.me/share/url?url=https://t.me/${botUsername}/game?startapp=${roomId}&text=🎮 تحداني الآن في لعبة XO!`;
-    if (tg) {
-        tg.openTelegramLink(shareUrl);
-    } else {
-        window.open(shareUrl, '_blank');
-    }
+function wouldWin(i, player) {
+  const tmp = board.slice();
+  tmp[i] = player;
+  return checkResult(tmp) === (player === HUMAN ? 'win' : 'loss');
 }
