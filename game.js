@@ -1035,18 +1035,3 @@ aiBtn.addEventListener(
 ========================= */
 
 init();
-function shareGame() {
-    const botUsername = "VVJJbot";
-
-    const appUrl =
-        `https://t.me/${botUsername}?startapp=${encodeURIComponent(roomId)}`;
-
-    const shareUrl =
-        `https://t.me/share/url?url=${encodeURIComponent(appUrl)}&text=${encodeURIComponent("🎮 تحداني الآن في لعبة XO!")}`;
-
-    if (tg) {
-        tg.openTelegramLink(shareUrl);
-    } else {
-        window.open(shareUrl, "_blank");
-    }
-}
