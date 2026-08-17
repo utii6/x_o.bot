@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', ensureMusicPlays);
 
 const cells = document.querySelectorAll('.cell');
 let board = Array(9).fill('');
-const HUMAN = '💋';
+const HUMAN = '✘';
 const AI = '𝐎';
 const WINS = [
   [0,1,2],[3,4,5],[6,7,8],
