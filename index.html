@@ -1,22 +1,13 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>XO 🎮</title>
-
-  <link rel="stylesheet" href="style.css">
-
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>X O لعبة </title>
+  <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
-
-  <h1>XO 🎮</h1>
-
-  <div id="status">جاري تحميل اللعبة...</div>
+  <h1>X O لعبة 🎮</h1>
 
   <div id="board">
     <div class="cell" data-index="0"></div>
@@ -30,24 +21,15 @@
     <div class="cell" data-index="8"></div>
   </div>
 
-  <div id="actions">
-    <button id="shareBtn" type="button">👥 العب مع صاحبـك</button>
-    <button id="aiBtn" type="button">🤖 ضد البوت</button>
-  </div>
-
-  <div id="reactions">
-    <button type="button" onclick="sendEmoji('😂')">😂</button>
-    <button type="button" onclick="sendEmoji('😏')">😏</button>
-    <button type="button" onclick="sendEmoji('🔥')">🔥</button>
-    <button type="button" onclick="sendEmoji('😱')">😱</button>
-    <button type="button" onclick="sendEmoji('💀')">💀</button>
-  </div>
-
+  <!-- موسيقى الخلفية -->
   <audio id="bgMusic" autoplay loop>
-    <source src="boss2014.mp3" type="audio/mpeg">
+    <source src="boss2014.mp3" type="audio/mpeg" />
+    <source src="boss2014.mp3" type="audio/mp4" />
+    متصفحك لا يدعم تشغيل الصوت.
   </audio>
 
-  <script src="game.js"></script>
-
+  <!-- مكتبة ويب أب تيليجرام (اختياري لكن مفيد) -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
